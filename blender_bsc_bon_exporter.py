@@ -10,6 +10,7 @@ bl_info = {
 
 import os
 import struct
+import tempfile
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
@@ -313,7 +314,56 @@ def write_bon(filepath: str, context: bpy.types.Context):
 
 
 
-def write_required_sidecars(basepath: str):
+
+def _get_first_image_from_selected_meshes(context: bpy.types.Context):
+    """Find first image texture in selected mesh materials."""
+    for obj in context.selected_objects:
+        if obj.type != 'MESH':
+            continue
+        for slot in obj.material_slots:
+            mat = slot.material
+            if not mat or not mat.use_nodes or not mat.node_tree:
+                continue
+            for node in mat.node_tree.nodes:
+                if node.type == 'TEX_IMAGE' and node.image:
+                    return node.image
+    return None
+
+
+def _image_to_dds_bytes(image: bpy.types.Image) -> bytes:
+    """Try to serialize Blender image to DDS bytes; fallback to minimal DDS header blob."""
+    # Try native Blender save path first
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.dds', delete=False) as tmp:
+            tmp_path = tmp.name
+
+        original_path = image.filepath_raw
+        original_format = image.file_format
+        image.filepath_raw = tmp_path
+        image.file_format = 'DDS'
+        image.save()
+
+        with open(tmp_path, 'rb') as f:
+            data = f.read()
+        if data.startswith(b'DDS '):
+            return data
+    except Exception:
+        pass
+    finally:
+        try:
+            image.filepath_raw = original_path
+            image.file_format = original_format
+        except Exception:
+            pass
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+    # Fallback: minimal DDS-like placeholder (magic + zeroed header)
+    return b'DDS ' + b'\x00' * 124
+
+
+def write_required_sidecars(basepath: str, context: bpy.types.Context):
     """Create required sidecar files used by the game loader.
 
     Some builds use numeric zero suffixes (.ba0/.bb0/.bc0/.bd0), while others
@@ -321,12 +371,15 @@ def write_required_sidecars(basepath: str):
     We create both variants to maximize compatibility.
     """
     base, _ext = os.path.splitext(basepath)
+    image = _get_first_image_from_selected_meshes(context)
+    dds_blob = _image_to_dds_bytes(image) if image else (b'DDS ' + b'\x00' * 124)
+
     for ext in (".ba0", ".bb0", ".bc0", ".bd0", ".bao", ".bbo"):
         sidecar = base + ext
         if not os.path.exists(sidecar):
             with open(sidecar, "wb") as f:
-                # Placeholder sidecar content: 16 bytes 0x00 to avoid missing-file loader errors
-                f.write(struct.pack("<IIII", 0, 0, 0, 0))
+                # Sidecar payload written as DDS-masked data (magic 'DDS ' + payload)
+                f.write(dds_blob)
 
 
 # -----------------------------
@@ -361,7 +414,7 @@ class EXPORT_OT_bsc_bon(bpy.types.Operator, ExportHelper):
         if self.export_bon:
             write_bon(bon_path, context)
         if self.export_sidecars:
-            write_required_sidecars(bsc_path)
+            write_required_sidecars(bsc_path, context)
 
         self.report({'INFO'}, f"Exported: {bsc_path}" + (f" and {bon_path}" if self.export_bon else ""))
         return {'FINISHED'}

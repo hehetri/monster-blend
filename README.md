@@ -45,6 +45,8 @@ Arquivo principal do add-on:
    - mantenha **Create sidecars (.ba0/.bb0/.bc0/.bd0/.bao/.bbo)** habilitado para criar sidecars obrigatórios (placeholders).
 5. Clique em **Export BSC/BON**.
 
+> Observação: os sidecars (`.ba0/.bb0/.bc0/.bd0/.bao/.bbo`) agora são gravados como **DDS mascarado** (conteúdo começando com `DDS `).
+
 ### Método B: Pelo painel lateral da View 3D
 
 1. Abra a **View3D**.
@@ -115,6 +117,8 @@ Com **Export .bon** ligado, o Blender criará:
 - `meu_modelo.bon`
 - `meu_modelo.ba0`, `meu_modelo.bb0`, `meu_modelo.bc0`, `meu_modelo.bd0` (placeholders)
 - `meu_modelo.bao`, `meu_modelo.bbo` (variante usada por algumas builds)
+
+Esses sidecars são exportados como DDS mascarado para compatibilidade com o loader.
 
 ---
 
