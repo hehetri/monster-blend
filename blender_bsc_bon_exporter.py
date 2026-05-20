@@ -11,12 +11,12 @@ bl_info = {
 import os
 import struct
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import bpy
 import bmesh
 from bpy_extras.io_utils import ExportHelper
-from bpy.props import StringProperty
+from bpy.props import StringProperty, BoolProperty
 from mathutils import Matrix
 
 
@@ -312,6 +312,22 @@ def write_bon(filepath: str, context: bpy.types.Context):
         # insert additional chunks here.
 
 
+
+def write_required_sidecars(basepath: str):
+    """Create required sidecar files used by the game loader (.ba0/.bb0/.bc0/.bd0).
+
+    These files are placeholders and can be replaced by real streams once
+    their binary layouts are fully reverse engineered.
+    """
+    base, _ext = os.path.splitext(basepath)
+    for ext in (".ba0", ".bb0", ".bc0", ".bd0"):
+        sidecar = base + ext
+        if not os.path.exists(sidecar):
+            with open(sidecar, "wb") as f:
+                # Placeholder sidecar content: 16 bytes 0x00 to avoid missing-file loader errors
+                f.write(struct.pack("<IIII", 0, 0, 0, 0))
+
+
 # -----------------------------
 # Blender UI / Operators
 # -----------------------------
@@ -324,9 +340,15 @@ class EXPORT_OT_bsc_bon(bpy.types.Operator, ExportHelper):
     filename_ext = ".bsc"
     filter_glob: StringProperty(default="*.bsc", options={'HIDDEN'})
 
-    export_bon: bpy.props.BoolProperty(
+    export_bon: BoolProperty(
         name="Export .bon",
         description="Also export matching .bon skeleton/weights file",
+        default=True,
+    )
+
+    export_sidecars: BoolProperty(
+        name="Create .ba0/.bb0/.bc0/.bd0",
+        description="Create required sidecar files as placeholders to avoid missing-file loader errors",
         default=True,
     )
 
@@ -337,6 +359,8 @@ class EXPORT_OT_bsc_bon(bpy.types.Operator, ExportHelper):
         write_bsc(bsc_path, context)
         if self.export_bon:
             write_bon(bon_path, context)
+        if self.export_sidecars:
+            write_required_sidecars(bsc_path)
 
         self.report({'INFO'}, f"Exported: {bsc_path}" + (f" and {bon_path}" if self.export_bon else ""))
         return {'FINISHED'}

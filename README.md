@@ -42,6 +42,7 @@ Arquivo principal do add-on:
 3. Escolha o caminho e nome do arquivo `.bsc`.
 4. No painel da janela de exportação:
    - mantenha **Export .bon** habilitado para gerar também o `.bon`.
+   - mantenha **Create .ba0/.bb0/.bc0/.bd0** habilitado para criar sidecars obrigatórios (placeholders).
 5. Clique em **Export BSC/BON**.
 
 ### Método B: Pelo painel lateral da View 3D
@@ -112,6 +113,7 @@ Com **Export .bon** ligado, o Blender criará:
 
 - `meu_modelo.bsc`
 - `meu_modelo.bon`
+- `meu_modelo.ba0`, `meu_modelo.bb0`, `meu_modelo.bc0`, `meu_modelo.bd0` (placeholders)
 
 ---
 
@@ -145,6 +147,8 @@ Como o formato é proprietário e ainda pode estar em engenharia reversa:
   - selecione também uma `ARMATURE` válida.
 - **Texturas não detectadas**:
   - o script busca nós `TEX_IMAGE` em materiais com nodes.
+- **Erro de arquivo ausente no jogo**:
+  - habilite a opção **Create .ba0/.bb0/.bc0/.bd0** ao exportar.
 - **Arquivo rejeitado pela engine**:
   - revise os placeholders e ajuste o layout binário para o padrão exato esperado.
 
