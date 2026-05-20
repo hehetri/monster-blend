@@ -115,58 +115,68 @@ def collect_scene_data(context: bpy.types.Context):
     bones: List[BoneData] = []
     weights: List[WeightData] = []
 
-    # Build mesh chunks from selected objects
+    # Build mesh chunks from selected objects (1 chunk per object/sub-mesh by active material set)
     for obj in selected_meshes:
         mesh = _triangulate_object_eval(context, obj)
         uv_layer = mesh.uv_layers.active.data if mesh.uv_layers.active else None
 
         prefix, flags = parse_prefix_and_flags(obj.name)
 
-        for poly in mesh.polygons:
-            mat_name = ""
-            tex_name = ""
-            if obj.material_slots and poly.material_index < len(obj.material_slots):
-                mat = obj.material_slots[poly.material_index].material
-                if mat:
+        # Resolve primary material/texture for this object (first slot with TEX_IMAGE)
+        mat_name = ""
+        tex_name = ""
+        if obj.material_slots:
+            for slot in obj.material_slots:
+                mat = slot.material
+                if not mat:
+                    continue
+                if not mat_name:
                     mat_name = mat.name
-                    if mat.use_nodes and mat.node_tree:
-                        for node in mat.node_tree.nodes:
-                            if node.type == 'TEX_IMAGE' and node.image:
-                                tex_name = node.image.name
-                                break
+                if mat.use_nodes and mat.node_tree:
+                    for node in mat.node_tree.nodes:
+                        if node.type == 'TEX_IMAGE' and node.image:
+                            tex_name = node.image.name
+                            break
+                if tex_name:
+                    break
 
-            if tex_name and tex_name not in texture_names:
-                texture_names.append(tex_name)
+        if tex_name and tex_name not in texture_names:
+            texture_names.append(tex_name)
 
-            chunk = ChunkData(
-                name=f"{obj.name}_poly_{poly.index}",
-                prefix=prefix,
-                flags=flags,
-                material_name=mat_name,
-                texture_name=tex_name,
-                object_name=obj.name,
-            )
+        chunk = ChunkData(
+            name=obj.name,
+            prefix=prefix,
+            flags=flags,
+            material_name=mat_name,
+            texture_name=tex_name,
+            object_name=obj.name,
+        )
 
-            index_base = 0
+        vertex_map: Dict[Tuple[int, int], int] = {}
+        for poly in mesh.polygons:
             for loop_idx in poly.loop_indices:
                 loop = mesh.loops[loop_idx]
-                vert = mesh.vertices[loop.vertex_index]
-                uv = (0.0, 0.0)
-                if uv_layer:
-                    uv_val = uv_layer[loop_idx].uv
-                    uv = (uv_val.x, uv_val.y)
+                key = (loop.vertex_index, loop_idx if uv_layer else -1)
 
-                chunk.vertices.append(
-                    VertexData(
-                        pos=(vert.co.x, vert.co.y, vert.co.z),
-                        normal=(vert.normal.x, vert.normal.y, vert.normal.z),
-                        uv=uv,
+                if key not in vertex_map:
+                    vert = mesh.vertices[loop.vertex_index]
+                    uv = (0.0, 0.0)
+                    if uv_layer:
+                        uv_val = uv_layer[loop_idx].uv
+                        uv = (uv_val.x, uv_val.y)
+
+                    vertex_map[key] = len(chunk.vertices)
+                    chunk.vertices.append(
+                        VertexData(
+                            pos=(vert.co.x, vert.co.y, vert.co.z),
+                            normal=(vert.normal.x, vert.normal.y, vert.normal.z),
+                            uv=uv,
+                        )
                     )
-                )
-                chunk.indices.append(index_base)
-                index_base += 1
 
-            chunks.append(chunk)
+                chunk.indices.append(vertex_map[key])
+
+        chunks.append(chunk)
 
         # collect weights from vertex groups
         if obj.vertex_groups:
@@ -253,8 +263,8 @@ def write_bsc(filepath: str, context: bpy.types.Context):
                 f.write(struct.pack("<2f", *v.uv))
 
             for idx in chunk.indices:
-                # Face index stream (placeholder): UInt16 per index
-                f.write(struct.pack("<H", idx & 0xFFFF))
+                # Face index stream (placeholder): UInt32 per index
+                f.write(struct.pack("<I", idx))
 
 
 # -----------------------------

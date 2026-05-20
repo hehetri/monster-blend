@@ -124,6 +124,7 @@ Esses sidecars são exportados como DDS mascarado para compatibilidade com o loa
 
 ## 7) Limitações atuais (importante)
 
+- Atualização recente: o exportador agora gera **1 chunk por objeto** (em vez de 1 por polígono) e índices de malha em `UInt32`, reduzindo casos de modelo invisível por layout inválido.
 Como o formato é proprietário e ainda pode estar em engenharia reversa:
 
 - O layout de 12 bytes por chunk está implementado como **estrutura base funcional**.
