@@ -231,20 +231,31 @@ def write_bsc(filepath: str, context: bpy.types.Context):
         f.write(struct.pack("<B", control_flag))
 
         # Offset 0x03+: 12-byte blocks associated with textures/chunks
-        # Current strategy: one 12-byte descriptor per chunk.
+        # Descriptor now carries per-chunk data offset to improve runtime compatibility.
+        descriptor_start = 0x03
+        descriptor_size = 12
+        data_start = descriptor_start + (len(chunks) * descriptor_size)
+
+        chunk_offsets: List[int] = []
+        cursor = data_start
         for chunk in chunks:
+            chunk_offsets.append(cursor)
+            # chunk payload = vertices(8 floats each) + indices(uint32 each)
+            cursor += (len(chunk.vertices) * (8 * 4)) + (len(chunk.indices) * 4)
+
+        for i, chunk in enumerate(chunks):
             tex_idx = textures.index(chunk.texture_name) if chunk.texture_name in textures else 0xFFFF
             vert_count = len(chunk.vertices) & 0xFFFF
             idx_count = len(chunk.indices) & 0xFFFF
             flags = chunk.flags & 0xFFFF
-            reserved = 0
+            data_offset = chunk_offsets[i] & 0xFFFFFFFF
 
             # 12-byte block: UInt16 texture index
             #                UInt16 vertex count
             #                UInt16 index count
             #                UInt16 flags from object prefix
-            #                UInt32 reserved (placeholder/offset future use)
-            f.write(struct.pack("<HHHHI", tex_idx, vert_count, idx_count, flags, reserved))
+            #                UInt32 absolute file offset to this chunk payload
+            f.write(struct.pack("<HHHHI", tex_idx, vert_count, idx_count, flags, data_offset))
 
         # Placeholder: optional material/texture extended table (if format requires later)
         # for tex_name in textures:

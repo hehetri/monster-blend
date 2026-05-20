@@ -65,7 +65,7 @@ Arquivo principal do add-on:
   - Byte `0x00`: quantidade de chunks
   - Byte `0x01`: quantidade de texturas
   - Byte `0x02`: byte de controle/flag (atual: `0x00`)
-- Blocos de 12 bytes por chunk (layout atual implementado como base)
+- Blocos de 12 bytes por chunk (agora incluindo offset absoluto para o payload do chunk)
 - Dados de vértices (posição, normal, UV)
 - Stream de índices (placeholder atual em `UInt16`)
 
@@ -127,7 +127,7 @@ Esses sidecars são exportados como DDS mascarado para compatibilidade com o loa
 - Atualização recente: o exportador agora gera **1 chunk por objeto** (em vez de 1 por polígono) e índices de malha em `UInt32`, reduzindo casos de modelo invisível por layout inválido.
 Como o formato é proprietário e ainda pode estar em engenharia reversa:
 
-- O layout de 12 bytes por chunk está implementado como **estrutura base funcional**.
+- O layout de 12 bytes por chunk inclui offset de dados por chunk, mas pode variar por build do jogo.
 - Há **placeholders comentados** no código para ajustar:
   - tabelas extras de material/textura
   - organização final de buffers de vértices/índices
