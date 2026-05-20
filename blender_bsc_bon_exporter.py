@@ -314,13 +314,14 @@ def write_bon(filepath: str, context: bpy.types.Context):
 
 
 def write_required_sidecars(basepath: str):
-    """Create required sidecar files used by the game loader (.ba0/.bb0/.bc0/.bd0).
+    """Create required sidecar files used by the game loader.
 
-    These files are placeholders and can be replaced by real streams once
-    their binary layouts are fully reverse engineered.
+    Some builds use numeric zero suffixes (.ba0/.bb0/.bc0/.bd0), while others
+    use letter-o suffixes for the first two files (.bao/.bbo).
+    We create both variants to maximize compatibility.
     """
     base, _ext = os.path.splitext(basepath)
-    for ext in (".ba0", ".bb0", ".bc0", ".bd0"):
+    for ext in (".ba0", ".bb0", ".bc0", ".bd0", ".bao", ".bbo"):
         sidecar = base + ext
         if not os.path.exists(sidecar):
             with open(sidecar, "wb") as f:
@@ -347,8 +348,8 @@ class EXPORT_OT_bsc_bon(bpy.types.Operator, ExportHelper):
     )
 
     export_sidecars: BoolProperty(
-        name="Create .ba0/.bb0/.bc0/.bd0",
-        description="Create required sidecar files as placeholders to avoid missing-file loader errors",
+        name="Create sidecars (.ba0/.bb0/.bc0/.bd0/.bao/.bbo)",
+        description="Create sidecar files as placeholders (numeric-zero and letter-o variants)",
         default=True,
     )
 
