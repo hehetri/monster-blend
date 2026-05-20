@@ -11,6 +11,7 @@ bl_info = {
 import os
 import struct
 import tempfile
+import shutil
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
@@ -384,6 +385,18 @@ def _image_to_dds_bytes(image: bpy.types.Image) -> bytes:
     return b'DDS ' + b'\x00' * 124
 
 
+
+
+def copy_sidecars_from_template(basepath: str, template_basepath: str):
+    """Copy sidecar files from a known-good monster as binary templates."""
+    dst_base, _ = os.path.splitext(basepath)
+    src_base, _ = os.path.splitext(template_basepath)
+    for ext in (".ba0", ".bb0", ".bc0", ".bd0", ".bao", ".bbo"):
+        src = src_base + ext
+        dst = dst_base + ext
+        if os.path.exists(src):
+            shutil.copyfile(src, dst)
+
 def write_required_sidecars(basepath: str, context: bpy.types.Context):
     """Create required sidecar files used by the game loader.
 
@@ -418,7 +431,25 @@ class EXPORT_OT_bsc_bon(bpy.types.Operator, ExportHelper):
     export_bon: BoolProperty(
         name="Export .bon",
         description="Also export matching .bon skeleton/weights file",
+        default=False,
+    )
+
+    preserve_existing_bon: BoolProperty(
+        name="Preserve existing .bon",
+        description="Do not overwrite .bon if it already exists (recommended for first tests)",
         default=True,
+    )
+
+    use_template_sidecars: BoolProperty(
+        name="Copy sidecars from template base",
+        description="Copy .ba0/.bb0/.bc0/.bd0/.bao/.bbo from a known-good monster base name",
+        default=False,
+    )
+
+    template_base: StringProperty(
+        name="Template base path",
+        description="Path to a known-good .bsc/.bon base name (e.g. C:/.../stalker.bsc)",
+        default="",
     )
 
     export_sidecars: BoolProperty(
@@ -433,8 +464,14 @@ class EXPORT_OT_bsc_bon(bpy.types.Operator, ExportHelper):
 
         write_bsc(bsc_path, context)
         if self.export_bon:
-            write_bon(bon_path, context)
-        if self.export_sidecars:
+            if self.preserve_existing_bon and os.path.exists(bon_path):
+                pass
+            else:
+                write_bon(bon_path, context)
+
+        if self.use_template_sidecars and self.template_base:
+            copy_sidecars_from_template(bsc_path, self.template_base)
+        elif self.export_sidecars:
             write_required_sidecars(bsc_path, context)
 
         self.report({'INFO'}, f"Exported: {bsc_path}" + (f" and {bon_path}" if self.export_bon else ""))
@@ -451,7 +488,7 @@ class VIEW3D_PT_bsc_bon_export(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         layout.label(text="Export proprietary .bsc/.bon")
-        layout.operator(EXPORT_OT_bsc_bon.bl_idname, text="Export BSC/BON")
+        op = layout.operator(EXPORT_OT_bsc_bon.bl_idname, text="Export BSC/BON")
 
 
 classes = (

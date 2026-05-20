@@ -166,3 +166,12 @@ Como o formato é proprietário e ainda pode estar em engenharia reversa:
 - Adicionar opção de presets de layout por versão do jogo.
 - Implementar logs de exportação mais detalhados.
 - Criar importador de teste para round-trip dentro do Blender.
+
+
+### Configuração recomendada para evitar crash (estado atual)
+
+- Deixe **Export .bon** desmarcado na maioria dos testes iniciais.
+- Ative **Preserve existing .bon** (padrão) para não sobrescrever rig/hitbox original.
+- Se possível, use **Copy sidecars from template base** e informe um monstro estável (ex.: `stalker.bsc`) para copiar `.ba0/.bb0/.bc0/.bd0/.bao/.bbo` originais.
+
+Isso evita que sidecars/bon experimentais causem erro de runtime em combate.
